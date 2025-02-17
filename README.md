@@ -10,3 +10,8 @@
 ## Market basket analysis
 
 ## Adverting campain analysis
+
+
+--
+customer insight
+Power BI
