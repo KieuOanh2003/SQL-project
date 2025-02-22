@@ -1,6 +1,5 @@
--- Input parameters for flexible analysis
 DECLARE @year INT = 2019;                    -- Analysis year
-DECLARE @time_unit VARCHAR(10) = 'Month';  -- Time unit ('MONTH' or 'QUARTER')
+DECLARE @time_unit VARCHAR(10) = 'Month';    -- Time unit ('MONTH' or 'QUARTER')
 DECLARE @from_period INT = NULL;             -- Starting period (NULL for all)
 DECLARE @to_period INT = NULL;               -- Ending period (NULL for all)
 
@@ -17,8 +16,41 @@ WITH metrics AS (
             WHEN @time_unit = 'MONTH' THEN MONTH(Date)
             ELSE DATEPART(QUARTER, Date)
         END AS period,
-        DATEDIFF(DAY, MAX(Date), @end_date) AS recency,
-        DATEDIFF(DAY, MIN(Date), MAX(Date)) / NULLIF(COUNT(*), 0) AS frequency,
+  -- Recency: Number of days since the last transaction to the end of the period
+CASE 
+    -- If time_unit is 'MONTH', calculate recency as days since last transaction to end of month
+    WHEN @time_unit = 'MONTH' THEN 
+        DATEDIFF(DAY, MAX(Date), EOMONTH(MAX(Date)))
+    -- If time_unit is 'QUARTER', calculate recency as days since last transaction to end of quarter
+    WHEN @time_unit = 'QUARTER' THEN 
+        DATEDIFF(DAY, MAX(Date), 
+            DATEFROMPARTS(
+                YEAR(MAX(Date)), 
+                CASE 
+                    WHEN DATEPART(QUARTER, MAX(Date)) = 1 THEN 3  -- End of Q1 is March 31
+                    WHEN DATEPART(QUARTER, MAX(Date)) = 2 THEN 6  -- End of Q2 is June 30
+                    WHEN DATEPART(QUARTER, MAX(Date)) = 3 THEN 9  -- End of Q3 is September 30
+                    WHEN DATEPART(QUARTER, MAX(Date)) = 4 THEN 12 -- End of Q4 is December 31
+                END, 
+                CASE 
+                    WHEN DATEPART(QUARTER, MAX(Date)) = 1 THEN 31 -- March has 31 days
+                    WHEN DATEPART(QUARTER, MAX(Date)) = 2 THEN 30 -- June has 30 days
+                    WHEN DATEPART(QUARTER, MAX(Date)) = 3 THEN 30 -- September has 30 days
+                    WHEN DATEPART(QUARTER, MAX(Date)) = 4 THEN 31 -- December has 31 days
+                END
+            )
+        )
+END AS recency,
+        -- Frequency: Average number of days between purchases
+        CASE 
+            -- If time_unit is 'MONTH', calculate frequency within the month
+            WHEN @time_unit = 'MONTH' THEN 
+                (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*) - 1, 0)
+            -- If time_unit is 'QUARTER', calculate frequency within the quarter
+            WHEN @time_unit = 'QUARTER' THEN 
+                (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*) - 1, 0)
+        END AS frequency,
+        -- Monetary: Average revenue per transaction
         SUM(Quantity * Price) / NULLIF(COUNT(*), 0) AS monetary
     FROM [sale_transaction-data]
     WHERE YEAR(Date) = @year
@@ -30,7 +62,7 @@ WITH metrics AS (
             ELSE DATEPART(QUARTER, Date)
         END
     HAVING 
-        DATEDIFF(DAY, MIN(Date), MAX(Date)) / NULLIF(COUNT(*), 0) > 0
+        (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*) - 1, 0) > 1  -- Exclude customers with only one transaction
 )
 
 -- Save metrics to temporary table
@@ -58,6 +90,7 @@ SELECT
 INTO #percentile_values
 FROM #metrics;
 
+--Select * from #percentile_values
 -- Declare variables for percentile boundaries
 DECLARE @recency_20 INT, @recency_40 INT, @recency_60 INT, @recency_80 INT;
 DECLARE @frequency_20 DECIMAL(10, 2), @frequency_40 DECIMAL(10, 2), @frequency_60 DECIMAL(10, 2), @frequency_80 DECIMAL(10, 2);
@@ -114,7 +147,7 @@ SELECT
     ) AS rfm_score
 INTO #rfm_scores
 FROM #metrics;
-
+--Select * from #rfm_scores
 -- Define RFM segments based on RFM scores
 SELECT DISTINCT rfm_score,
   CASE 
@@ -145,6 +178,7 @@ SELECT DISTINCT rfm_score,
 INTO #rfm_segment
 FROM #rfm_scores;
 
+--Select * from #rfm_segment
 -- Analyze customer transitions between segments across periods
 SELECT 
     a.year,
@@ -185,7 +219,7 @@ ORDER BY
     rs_from.rfm_segment,
     rs_to.rfm_segment;
 
--- -- Clean up temporary tables
+-- Clean up temporary tables
 DROP TABLE #metrics;
 DROP TABLE #percentile_values;
 DROP TABLE #rfm_scores;
