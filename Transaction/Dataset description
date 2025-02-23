@@ -1,3 +1,4 @@
+Dataset : Transaction
 
 | Column Name   | Description                                             |
 | ------------- | ------------------------------------------------------- |
@@ -9,3 +10,5 @@
 | Quantity      | Number of units purchased in the transaction.           |
 | CustomerNo    | Unique identifier for the customer making the purchase. |
 | Country       | The country where the transaction took place.           |
+
+On this dataset , i focus on analyse 3 key points : Sale performance , Rfm , Market basket 
