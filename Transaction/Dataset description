@@ -1,0 +1,11 @@
+
+| Column Name   | Description                                             |
+| ------------- | ------------------------------------------------------- |
+| TransactionNo | Unique identifier for each sales transaction.           |
+| Date          | The date when the transaction occurred.                 |
+| ProductNo     | Unique identifier for the product purchased.            |
+| ProductName   | Name of the product sold.                               |
+| Price         | Unit price of the product in the transaction.           |
+| Quantity      | Number of units purchased in the transaction.           |
+| CustomerNo    | Unique identifier for the customer making the purchase. |
+| Country       | The country where the transaction took place.           |
