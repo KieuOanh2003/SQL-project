@@ -45,10 +45,10 @@ END AS recency,
         CASE 
             -- If time_unit is 'MONTH', calculate frequency within the month
             WHEN @time_unit = 'MONTH' THEN 
-                (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*) - 1, 0)
+                (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*), 0)
             -- If time_unit is 'QUARTER', calculate frequency within the quarter
             WHEN @time_unit = 'QUARTER' THEN 
-                (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*) - 1, 0)
+                (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*), 0)
         END AS frequency,
         -- Monetary: Average revenue per transaction
         SUM(Quantity * Price) / NULLIF(COUNT(*), 0) AS monetary
@@ -62,7 +62,7 @@ END AS recency,
             ELSE DATEPART(QUARTER, Date)
         END
     HAVING 
-        (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*) - 1, 0) > 1  -- Exclude customers with only one transaction
+        (DATEDIFF(DAY, MIN(Date), MAX(Date))) / NULLIF(COUNT(*), 0) > 1  -- Exclude customers with only one transaction
 )
 
 -- Save metrics to temporary table
